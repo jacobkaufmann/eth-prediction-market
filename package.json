@@ -1,0 +1,23 @@
+{
+  "name": "hardhat-project",
+  "devDependencies": {
+    "@gnosis.pm/conditional-tokens-contracts": "^1.0.3",
+    "@nomiclabs/hardhat-ethers": "^2.0.2",
+    "@nomiclabs/hardhat-waffle": "^2.0.1",
+    "@openzeppelin/test-helpers": "^0.5.11",
+    "@types/chai": "^4.2.17",
+    "@types/mocha": "^8.2.2",
+    "@types/node": "^15.0.2",
+    "canonical-weth": "^1.4.0",
+    "chai": "^4.3.4",
+    "ethereum-waffle": "^3.3.0",
+    "ethers": "^5.1.4",
+    "hardhat": "^2.2.1",
+    "mocha": "^7.2.0",
+    "ts-node": "^9.1.1"
+  },
+  "dependencies": {
+    "@balancer-labs/v2-deployments": "^1.1.1",
+    "@openzeppelin/contracts": "3.4.0"
+  }
+}
