@@ -7,8 +7,6 @@ import "@openzeppelin/contracts/token/ERC1155/ERC1155Receiver.sol";
 import "./interfaces/IConditionalTokens.sol";
 
 contract ConditionalTokenERC20 is ERC20, ERC1155Receiver {
-    using SafeMath for uint256;
-
     uint256 private immutable _positionId;
     IConditionalTokens private immutable _conditionalTokens;
 
@@ -32,6 +30,27 @@ contract ConditionalTokenERC20 is ERC20, ERC1155Receiver {
         return _positionId;
     }
 
+    /**
+     * @dev Override to allow for 'infinite allowance' and let the token owner use `transferFrom` with no self-allowance
+     */
+    function transferFrom(
+        address sender,
+        address recipient,
+        uint256 amount
+    ) public override returns (bool) {
+        uint256 currentAllowance = allowance(sender, _msgSender());
+        require(_msgSender() == sender || currentAllowance >= amount, "ERC20: transfer amount exceeds allowance");
+
+        _transfer(sender, recipient, amount);
+
+        if (_msgSender() != sender && currentAllowance != type(uint256).max) {
+            // Because of the previous require, we know that if msg.sender != sender then currentAllowance >= amount
+            _approve(sender, _msgSender(), currentAllowance - amount);
+        }
+
+        return true;
+    }
+
     function mint(uint256 amount) external {
         _conditionalTokens.safeTransferFrom(_msgSender(), address(this), _positionId, amount, "");
         _mint(_msgSender(), amount);
@@ -40,14 +59,6 @@ contract ConditionalTokenERC20 is ERC20, ERC1155Receiver {
     function burn(uint256 amount) external {
         _burn(_msgSender(), amount);
         _conditionalTokens.safeTransferFrom(address(this), _msgSender(), _positionId, amount, "");
-    }
-
-    function burnFrom(address account, uint256 amount) external {
-        uint256 currentAllowance = allowance(account, _msgSender());
-        require(currentAllowance >= amount, "ERC20: burn amount exceeds allowance");
-        _approve(account, _msgSender(), currentAllowance.sub(amount));
-        _burn(account, amount);
-        _conditionalTokens.safeTransferFrom(address(this), account, _positionId, amount, "");
     }
 
     function onERC1155Received(

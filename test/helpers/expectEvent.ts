@@ -1,27 +1,27 @@
-import { expect } from 'chai';
-import { BigNumber, ContractReceipt } from 'ethers';
-import { Interface, LogDescription } from 'ethers/lib/utils';
+import { expect } from "chai";
+import { BigNumber, ContractReceipt } from "ethers";
+import { Interface, LogDescription } from "ethers/lib/utils";
 
-// Ported from @openzeppelin/test-helpers to use with Ethers. The Test Helpers don't
-// yet have Typescript typings, so we're being lax about them here.
+// Ported from @openzeppelin/test-helpers to use with Ethers. The Test Helpers don"t
+// yet have Typescript typings, so we"re being lax about them here.
 // See https://github.com/OpenZeppelin/openzeppelin-test-helpers/issues/122
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 export const inReceipt = (receipt: ContractReceipt, eventName: string, eventArgs = {}): any => {
     if (receipt.events == undefined) {
-        throw new Error('No events found in receipt');
+        throw new Error("No events found in receipt");
     }
 
     const events = receipt.events.filter((e) => e.event === eventName);
-    expect(events.length > 0).to.equal(true, `No '${eventName}' events found`);
+    expect(events.length > 0).to.equal(true, `No "${eventName}" events found`);
 
     const exceptions: Array<string> = [];
     const event = events.find((e) => {
         for (const [k, v] of Object.entries(eventArgs)) {
             try {
                 if (e.args == undefined) {
-                    throw new Error('Event has no arguments');
+                    throw new Error("Event has no arguments");
                 }
 
                 contains(e.args, k, v);
@@ -59,14 +59,14 @@ export const inIndirectReceipt = (
         .filter((e): e is LogDescription => e !== undefined);
 
     const expectedEvents = decodedEvents.filter((event) => event.name === eventName);
-    expect(expectedEvents.length > 0).to.equal(true, `No '${eventName}' events found`);
+    expect(expectedEvents.length > 0).to.equal(true, `No "${eventName}" events found`);
 
     const exceptions: Array<string> = [];
     const event = expectedEvents.find(function (e) {
         for (const [k, v] of Object.entries(eventArgs)) {
             try {
                 if (e.args == undefined) {
-                    throw new Error('Event has no arguments');
+                    throw new Error("Event has no arguments");
                 }
 
                 contains(e.args, k, v);
@@ -90,24 +90,24 @@ export const inIndirectReceipt = (
 export const notEmitted = (receipt: ContractReceipt, eventName: string): void => {
     if (receipt.events != undefined) {
         const events = receipt.events.filter((e) => e.event === eventName);
-        expect(events.length > 0).to.equal(false, `'${eventName}' event found`);
+        expect(events.length > 0).to.equal(false, `"${eventName}" event found`);
     }
 }
 
 const contains = (args: { [key: string]: any | undefined }, key: string, value: any) => {
-    expect(key in args).to.equal(true, `Event argument '${key}' not found`);
+    expect(key in args).to.equal(true, `Event argument "${key}" not found`);
 
     if (value === null) {
-        expect(args[key]).to.equal(null, `expected event argument '${key}' to be null but got ${args[key]}`);
+        expect(args[key]).to.equal(null, `expected event argument "${key}" to be null but got ${args[key]}`);
     } else if (BigNumber.isBigNumber(args[key]) || BigNumber.isBigNumber(value)) {
         const actual = BigNumber.isBigNumber(args[key]) ? args[key].toString() : args[key];
         const expected = BigNumber.isBigNumber(value) ? value.toString() : value;
 
-        expect(args[key]).to.equal(value, `expected event argument '${key}' to have value ${expected} but got ${actual}`);
+        expect(args[key]).to.equal(value, `expected event argument "${key}" to have value ${expected} but got ${actual}`);
     } else {
         expect(args[key]).to.be.deep.equal(
             value,
-            `expected event argument '${key}' to have value ${value} but got ${args[key]}`
+            `expected event argument "${key}" to have value ${value} but got ${args[key]}`
         );
     }
 }

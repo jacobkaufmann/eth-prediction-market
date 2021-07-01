@@ -36,6 +36,9 @@ contract BalancerMarket is BaseMarket, ERC1155Holder {
         for (uint8 i = 0; i < poolTokens.length; i++) {
             if (poolTokens[i] != collateralToken) {
                 conditionalTokens.setApprovalForAll(address(poolTokens[i]), true);
+
+                // Give the vault 'infinite allowance' for ERC20 conditional tokens
+                poolTokens[i].approve(address(vault), type(uint256).max);
             }
         }
     }
@@ -91,8 +94,6 @@ contract BalancerMarket is BaseMarket, ERC1155Holder {
                 ConditionalTokenERC20(address(poolTokens[i])).mint(splitAmount);
             }
 
-            poolTokens[i].approve(address(_vault), splitAmount);
-
             poolAssets[i] = IAsset(address(poolTokens[i]));
             maxAmountsIn[i] = splitAmount;
         }
@@ -114,6 +115,10 @@ contract BalancerMarket is BaseMarket, ERC1155Holder {
             userData: userData,
             fromInternalBalance: false
         });
+
+        // The collateral token is the only token that requires approval because we give
+        // the vault 'infinite approval' for all ERC20 conditional tokens in the constructor
+        _collateralToken.approve(address(_vault), splitAmount);
 
         _vault.joinPool(_poolId, address(this), msg.sender, joinRequest);
     }

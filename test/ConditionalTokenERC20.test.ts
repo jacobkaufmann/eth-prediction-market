@@ -81,6 +81,93 @@ describe("ConditionalTokensERC20", () => {
         });
     });
 
+    describe("transferFrom", () => {
+        let snapshot: string;
+
+        beforeEach(async () => {
+            snapshot = await takeSnapshot(waffle.provider);
+
+            conditionalTokenERC20 = await deploy("ConditionalTokenERC20", {
+                args: [
+                    conditionalTokens.address,
+                    positionId,
+                    CONDITIONAL_TOKEN_NAME,
+                    CONDITIONAL_TOKEN_SYMBOL,
+                    ERC20_COLLATERAL_DECIMALS
+                ],
+            });
+            await mintConditionalTokens(
+                agent0,
+                TRANSFER_AMOUNT,
+                ZERO_BYTES32,
+                ethers.utils.hexlify(conditionId),
+                PARTITION,
+                conditionalTokens,
+                collateralToken
+            );
+            await conditionalTokens.connect(agent0).setApprovalForAll(conditionalTokenERC20.address, true);
+        });
+
+        afterEach(async () => {
+            if (snapshot !== undefined) {
+                await revert(waffle.provider, snapshot);
+            }
+        });
+
+        it("succeeds for msg.sender == sender", async () => {
+            await conditionalTokenERC20.connect(agent0).mint(TRANSFER_AMOUNT);
+            await conditionalTokenERC20.connect(agent0).transferFrom(agent0.address, agent1.address, TRANSFER_AMOUNT);
+
+            expect(await conditionalTokenERC20.balanceOf(agent0.address)).to.equal(ethers.constants.Zero);
+            expect(await conditionalTokenERC20.balanceOf(agent1.address)).to.equal(TRANSFER_AMOUNT);
+        });
+
+        // If some account approves another account with infinite allowance, the allowance should not
+        // change after a 'transferFrom' call.
+        it("succeeds for msg.sender != sender and infinite allowance", async () => {
+            await conditionalTokenERC20.connect(agent0).mint(TRANSFER_AMOUNT);
+            await conditionalTokenERC20.connect(agent0).approve(agent1.address, ethers.constants.MaxUint256);
+            await conditionalTokenERC20.connect(agent1).transferFrom(agent0.address, agent1.address, TRANSFER_AMOUNT);
+
+            expect(await conditionalTokenERC20.balanceOf(agent0.address)).to.equal(ethers.constants.Zero);
+            expect(await conditionalTokenERC20.balanceOf(agent1.address)).to.equal(TRANSFER_AMOUNT);
+            expect(await conditionalTokenERC20.allowance(agent0.address, agent1.address))
+                .to.equal(ethers.constants.MaxUint256);
+        });
+
+        it("succeeds for msg.sender != sender and finite allowance", async () => {
+            await conditionalTokenERC20.connect(agent0).mint(TRANSFER_AMOUNT);
+            await conditionalTokenERC20.connect(agent0).approve(agent1.address, TRANSFER_AMOUNT);
+            await conditionalTokenERC20.connect(agent1).transferFrom(agent0.address, agent1.address, TRANSFER_AMOUNT);
+
+            expect(await conditionalTokenERC20.balanceOf(agent0.address)).to.equal(ethers.constants.Zero);
+            expect(await conditionalTokenERC20.balanceOf(agent1.address)).to.equal(TRANSFER_AMOUNT);
+            expect(await conditionalTokenERC20.allowance(agent0.address, agent1.address))
+                .to.equal(ethers.constants.Zero);
+        });
+
+        it("fails require for insufficient allowance", async () => {
+            await conditionalTokenERC20.connect(agent0).mint(TRANSFER_AMOUNT);
+            await conditionalTokenERC20.connect(agent0).approve(agent1.address, TRANSFER_AMOUNT.sub(1));
+
+            await expect(conditionalTokenERC20.connect(agent1).transferFrom(
+                agent0.address,
+                agent1.address,
+                TRANSFER_AMOUNT
+            )).to.be.revertedWith("ERC20: transfer amount exceeds allowance");
+        });
+
+        it("fails require for insufficient balance", async () => {
+            await conditionalTokenERC20.connect(agent0).mint(TRANSFER_AMOUNT);
+
+            await expect(conditionalTokenERC20.connect(agent0).transferFrom(
+                agent0.address,
+                agent1.address,
+                TRANSFER_AMOUNT.add(1)
+            )).to.be.revertedWith("ERC20: transfer amount exceeds balance");
+        });
+    });
+
     describe("mint", () => {
         let snapshot: string;
 
@@ -179,79 +266,6 @@ describe("ConditionalTokensERC20", () => {
                 .to.equal(ethers.constants.Zero);
             expect(await conditionalTokenERC20.balanceOf(agent0.address))
                 .to.equal(TRANSFER_AMOUNT);
-        });
-    });
-
-    describe("burnFrom", () => {
-        let snapshot: string;
-
-        beforeEach(async () => {
-            snapshot = await takeSnapshot(waffle.provider);
-
-            conditionalTokenERC20 = await deploy("ConditionalTokenERC20", {
-                args: [
-                    conditionalTokens.address,
-                    positionId,
-                    CONDITIONAL_TOKEN_NAME,
-                    CONDITIONAL_TOKEN_SYMBOL,
-                    ERC20_COLLATERAL_DECIMALS
-                ],
-            });
-            await mintConditionalTokens(
-                agent0,
-                TRANSFER_AMOUNT,
-                ZERO_BYTES32,
-                ethers.utils.hexlify(conditionId),
-                PARTITION,
-                conditionalTokens,
-                collateralToken
-            );
-            await conditionalTokens.connect(agent0).setApprovalForAll(conditionalTokenERC20.address, true);
-            await conditionalTokenERC20.connect(agent0).mint(TRANSFER_AMOUNT);
-        });
-
-        afterEach(async () => {
-            if (snapshot !== undefined) {
-                await revert(waffle.provider, snapshot);
-            }
-        });
-
-        it("succeeds", async () => {
-            await conditionalTokenERC20.connect(agent0).approve(agent1.address, TRANSFER_AMOUNT);
-
-            await conditionalTokenERC20.connect(agent1).burnFrom(agent0.address, TRANSFER_AMOUNT);
-            expect(await conditionalTokens.balanceOf(agent0.address, positionId))
-                .to.equal(TRANSFER_AMOUNT);
-            expect(await conditionalTokenERC20.balanceOf(agent0.address))
-                .to.equal(ethers.constants.Zero);
-            expect(await conditionalTokenERC20.allowance(agent0.address, agent1.address))
-                .to.equal(ethers.constants.Zero);
-        });
-
-        it("fails require for insufficient token allowance", async () => {
-            await conditionalTokenERC20.connect(agent0).approve(agent1.address, TRANSFER_AMOUNT.sub(1));
-
-            await expect(conditionalTokenERC20.connect(agent1).burnFrom(agent0.address, TRANSFER_AMOUNT))
-                .to.be.revertedWith("revert ERC20: burn amount exceeds allowance");
-            expect(await conditionalTokens.balanceOf(agent0.address, positionId))
-                .to.equal(ethers.constants.Zero);
-            expect(await conditionalTokenERC20.balanceOf(agent0.address))
-                .to.equal(TRANSFER_AMOUNT);
-            expect(await conditionalTokenERC20.allowance(agent0.address, agent1.address))
-                .to.equal(TRANSFER_AMOUNT.sub(1));
-        });
-
-        it("fails require for insufficient token balance", async () => {
-            await conditionalTokenERC20.connect(agent0).approve(agent1.address, TRANSFER_AMOUNT.add(1));
-
-            await expect(conditionalTokenERC20.connect(agent1).burnFrom(agent0.address, TRANSFER_AMOUNT.add(1)))
-                .to.be.revertedWith("revert ERC20: burn amount exceeds balance");
-            expect(await conditionalTokens.balanceOf(agent0.address, positionId))
-                .to.equal(ethers.constants.Zero);
-            expect(await conditionalTokenERC20.balanceOf(agent0.address))
-                .to.equal(TRANSFER_AMOUNT);
-            expect(await conditionalTokenERC20.allowance(agent0.address, agent1.address))
-                .to.equal(TRANSFER_AMOUNT.add(1));
         });
     });
 

@@ -1,7 +1,6 @@
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { BigNumber, Contract } from "ethers";
 import { ethers, waffle } from "hardhat";
-import "@nomiclabs/hardhat-waffle";
 import Authorizer from "./artifacts/balancer/Authorizer.json";
 import Vault from "./artifacts/balancer/Vault.json";
 import WeightedPoolFactory from "./artifacts/balancer/WeightedPoolFactory.json";
@@ -134,6 +133,10 @@ describe("BalancerMarket", () => {
                 if (poolTokens[i] !== collateralToken.address) {
                     expect(await conditionalTokens.isApprovedForAll(balancerMarket.address, poolTokens[i]))
                         .to.equal(true);
+                    
+                    const poolToken = await ethers.getContractAt("ConditionalTokenERC20", poolTokens[i]);
+                    expect(await poolToken.allowance(balancerMarket.address, vault.address))
+                        .to.equal(ethers.constants.MaxUint256);
                 }
             }
         });
